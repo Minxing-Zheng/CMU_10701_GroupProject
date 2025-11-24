@@ -1,0 +1,9 @@
+C14 Yahoo! Learning to Rank Challenge, version 1.0
+
+Machine learning has been successfully applied to web search ranking and the goal of this dataset to benchmark such machine learning algorithms. The dataset consists of features extracted from (query,url) pairs along with relevance judgments. The queries, ulrs and features descriptions are not given, only the feature values are.
+
+There are two datasets in this distribution: a large one and a small one. Each dataset is divided in 3 sets: training, validation, and test. Statistics are as follows: Set 1 Set 2 Train Val Test Train Val Test # queries 19,944 2,994 6,983 1,266 1,266 3,798 # urls 473,134 71,083 165,660 34,815 34,881 103,174 # features 519 596
+
+Number of features in the union of the two sets: 700; in the intersection: 415. Each feature has been normalized to be in the [0,1] range.
+
+Each url is given a relevance judgment with respect to the query. There are 5 levels of relevance from 0 (least relevant) to 4 (most relevant). 
