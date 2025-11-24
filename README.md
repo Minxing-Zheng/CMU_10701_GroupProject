@@ -1,14 +1,17 @@
-### 🚀 Toy Example on Colab
+## 🚀 Run the Demo on Google Colab
 
-Try the **`10701_ConformalPrediction_demo.ipynb`** notebook for a quick end-to-end demonstration on Colab.
+You can try the full toy example directly in your browser using Google Colab:
 
-This example shows how to:
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Minxing-Zheng/CMU_10701_GroupProject/blob/main/10701_ConformalPrediction_demo.ipynb)
 
-- 📦 Load a pretrained recommendation ranking model  
-- 🔍 Run predictions on a small sample dataset  
-- 🎯 Apply conformal FDR control step-by-step  
+The demo notebook walks you through:
 
-Perfect for getting started with the pipeline in a lightweight setting.
+- 📦 Loading a pretrained recommendation ranking model  
+- 🔍 Predicting on a small sample dataset  
+- 🎯 Constructing conformal FDR-controlled selection sets  
+- 📈 Running repeated experiments with λ̂-search and empirical FDR  
+
+This provides a lightweight end-to-end introduction to the pipeline.
 
 ---
 
