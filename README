@@ -1,4 +1,6 @@
-You can explore a toy end-to-end example using 10701_ConformalPrediction_demo.ipynb.
+## Toy Exmaple with Coalb
+
+You can try a toy end-to-end example using 10701_ConformalPrediction_demo.ipynb on colab.
 This notebook:
 
 loads a pretrained recommendation ranking model,
