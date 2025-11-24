@@ -1,0 +1,8 @@
+You can explore a toy end-to-end example using 10701_ConformalPrediction_demo.ipynb.
+This notebook:
+
+loads a pretrained recommendation ranking model,
+
+runs predictions on a small sample dataset,
+
+and demonstrates conformal FDR control step-by-step.
