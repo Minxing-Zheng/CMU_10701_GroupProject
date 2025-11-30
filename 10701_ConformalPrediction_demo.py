@@ -1,14 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# <a href="https://colab.research.google.com/github/Minxing-Zheng/CMU_10701_GroupProject/blob/main/10701_ConformalPrediction_demo.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
-
-# In[11]:
-
-
-get_ipython().system('git clone https://github.com/Minxing-Zheng/CMU_10701_GroupProject.git')
-get_ipython().run_line_magic('cd', 'CMU_10701_GroupProject')
-
 
 # In[17]:
 
@@ -203,8 +195,6 @@ axes[1].set_title("Selected Set Size Distribution")
 plt.tight_layout()
 plt.show()
 
-
-# In[ ]:
 
 
 
