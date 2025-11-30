@@ -42,4 +42,3 @@ def find_lambda_hat(calib_dict, delta, alpha, step=0.001):
         else:
             break
     return best
-
