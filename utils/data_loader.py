@@ -12,7 +12,7 @@ import urllib.request
 import zipfile
 import tempfile
 from pathlib import Path
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -117,11 +117,19 @@ def load_movielens_df(data_dir: str | Path) -> pd.DataFrame:
 def split_movielens_to_txt(
     data_root: str | Path = "data/movie",
     download: bool = False,
-    test_size: float = 0.6,
+    test_size: float = 0.2,
     val_size: float = 0.2,
     seed: int = 42,
+    train_size: Optional[float] = 0.6,
 ) -> Dict[str, Path]:
-    """Split MovieLens into train/valid/test txt files (tab-separated)."""
+    """
+    Split MovieLens into train/valid/test txt files (tab-separated).
+
+    Defaults to 60% train, 20% valid, and 20% test. If the provided fractions
+    sum to < 1, the remainder is left unused to honor the requested sizes.
+    To recover the previous behavior (train = 1 - test - valid), pass
+    train_size=None.
+    """
     if download:
         # Download into a temporary directory and clean it up after writing splits.
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -131,25 +139,56 @@ def split_movielens_to_txt(
             with zipfile.ZipFile(zip_path, "r") as zf:
                 zf.extractall(tmpdir)
             df = load_movielens_df(tmpdir / "ml-100k")
-            splits = _write_movielens_splits(df, data_root, test_size, val_size, seed)
+            splits = _write_movielens_splits(df, data_root, train_size, test_size, val_size, seed)
         return splits
     else:
         mv_dir = ensure_movielens(data_root, download=False)
         df = load_movielens_df(mv_dir)
-        return _write_movielens_splits(df, data_root, test_size, val_size, seed)
+        return _write_movielens_splits(df, data_root, train_size, test_size, val_size, seed)
 
 
 def _write_movielens_splits(
     df: pd.DataFrame,
     data_root: str | Path,
+    train_size: Optional[float],
     test_size: float,
     val_size: float,
     seed: int,
 ) -> Dict[str, Path]:
     """Helper to split and write MovieLens data without persisting source archives."""
-    train_val, test = train_test_split(df, test_size=test_size, random_state=seed)
-    rel_val = val_size / (1.0 - test_size)
-    train, val = train_test_split(train_val, test_size=rel_val, random_state=seed)
+    if train_size is None:
+        train_size = 1.0 - test_size - val_size
+
+    total = train_size + test_size + val_size
+    if train_size <= 0 or test_size < 0 or val_size < 0:
+        raise ValueError("train_size must be > 0 and test/val sizes must be non-negative.")
+    if total - 1.0 > 1e-6:
+        raise ValueError("train_size + test_size + val_size cannot exceed 1.0.")
+
+    # First carve out the training set; then take validation and test as absolute fractions of the full set.
+    train, remainder = train_test_split(df, train_size=train_size, random_state=seed)
+
+    remainder_frac = 1.0 - train_size
+    if val_size > remainder_frac + 1e-8:
+        raise ValueError("val_size is larger than the non-train remainder.")
+    val_ratio = val_size / remainder_frac if remainder_frac > 0 else 0.0
+    if val_size > 0 and val_ratio >= 1 - 1e-8:
+        val, remainder = remainder, df.iloc[0:0]
+    elif val_size > 0:
+        val, remainder = train_test_split(remainder, train_size=val_ratio, random_state=seed)
+    else:
+        val, remainder = df.iloc[0:0], remainder
+
+    remainder_frac -= val_size
+    if test_size > remainder_frac + 1e-8:
+        raise ValueError("test_size is larger than the remaining pool after train/valid.")
+    test_ratio = test_size / remainder_frac if remainder_frac > 0 else 0.0
+    if test_size > 0 and test_ratio >= 1 - 1e-8:
+        test, _ = remainder, df.iloc[0:0]
+    elif test_size > 0:
+        test, _ = train_test_split(remainder, train_size=test_ratio, random_state=seed)
+    else:
+        test, _ = df.iloc[0:0], remainder
 
     out_dir = Path(data_root)
     out_dir.mkdir(parents=True, exist_ok=True)
