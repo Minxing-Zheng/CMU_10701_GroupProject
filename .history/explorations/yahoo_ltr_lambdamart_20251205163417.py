@@ -29,7 +29,8 @@ from utils.split_utils import split_query_dict
 from utils.fdp_eval import compute_fdp, find_lambda_hat
 
 # ==========================================================
-# 1. read data & preprocess features
+# 1. 读取 Yahoo LTR (Set1) 数据
+#    （你可以直接用之前那段 load_svmlight_with_qid 代码）
 # ==========================================================
 from scipy import sparse
 
@@ -72,6 +73,7 @@ X_te, y_te, q_te = load_svmlight_with_qid(test_path)
 
 print("Shapes — train:", X_tr.shape, "valid:", X_vl.shape, "test:", X_te.shape)
 
+# LightGBM 不强制要求标准化，但为了和 MLP 版可比，这里统一做一下
 scaler = StandardScaler(with_mean=False)  # sparse CSR => with_mean=False
 X_tr_scaled = scaler.fit_transform(X_tr).toarray()
 X_vl_scaled = scaler.transform(X_vl).toarray()
@@ -81,7 +83,7 @@ n_features = X_tr_scaled.shape[1]
 print("Number of features:", n_features)
 
 # ==========================================================
-# 2. ndcg-based hyperparam tuning on valid set
+# 2. 简单的 LambdaMART 超参选择（在验证集上选最优 NDCG@10）
 # ==========================================================
 
 def ndcg_at_k(y_true, y_score, qid, k=10):
@@ -110,7 +112,8 @@ def ndcg_at_k(y_true, y_score, qid, k=10):
             ndcgs.append(dcg / idcg)
     return float(np.mean(ndcgs)) if ndcgs else 0.0
 
-#hyperparameter grid
+
+# 定义一个非常简易的超参网格
 config_grid = [
     LambdaMARTConfig(num_leaves=31, learning_rate=0.05, n_estimators=300),
     LambdaMARTConfig(num_leaves=63, learning_rate=0.05, n_estimators=500),
@@ -134,7 +137,7 @@ for cfg in config_grid:
 print("\nBest config:", best_config)
 print("Best valid NDCG@10:", best_ndcg)
 
-# use best config to retrain on train+valid
+# 用 best config 在 train+valid 上重新训练
 X_trvl = np.vstack([X_tr_scaled, X_vl_scaled])
 y_trvl = np.concatenate([y_tr, y_vl])
 q_trvl = np.concatenate([q_tr, q_vl])
@@ -143,7 +146,7 @@ best_ranker = LambdaMARTRanker(best_config)
 best_ranker.fit(X_trvl, y_trvl, q_trvl)
 
 # ==========================================================
-# 3. testing
+# 3. 在 test 上打分，生成 df_summary（和原 demo 一样格式）
 # ==========================================================
 test_scores = best_ranker.predict(X_te_scaled)
 
@@ -151,9 +154,10 @@ df_summary = pd.DataFrame({
     "qid": q_te,
     "doc_id": np.arange(len(q_te), dtype=np.int64),
     "label": y_te,
-    "pred_score_raw": test_scores,  
+    "pred_score_raw": test_scores,  # 先留一个原始分数做参考
 })
 
+# 把 LambdaMART 分数过一遍 sigmoid，压到 [0,1]
 df_summary["pred_score"] = 1 / (1 + np.exp(-df_summary["pred_score_raw"]))
 
 
@@ -209,7 +213,7 @@ plt.tight_layout()
 plt.show()
 
 # ==========================================================
-# 4. query dict
+# 4. 转成 query_dict，拆 calib/test（完全复用原 demo）
 # ==========================================================
 query_dict = (
     df_summary.groupby("qid")[["doc_id", "label", "pred_score"]]
@@ -221,7 +225,7 @@ print(f"Number of calibration queries: {len(calib_dict_full)}")
 print(f"Number of test queries:        {len(test_dict_full)}")
 
 # ==========================================================
-# 5. Compute FDP + λ̂ search
+# 5. Compute FDP + λ̂ search（和原 demo 一样）
 # ==========================================================
 alpha = 0.3
 delta = 0.1
