@@ -89,12 +89,13 @@ python rank_pipeline.py --dataset mq2007 --fold 1 --model lambdamart --seed1
 python rank_pipeline.py --dataset yahoo_set2 --model all 
 """
 
-
+# as there are trailing comments for some datasets after the feature
+# we use this to remove the comments 
 def _strip_comment(line: str) -> str:
-    """Remove trailing comments that often start with # in LETOR style files."""
     if "#" in line:
         line = line.split("#", 1)[0]
     return line.strip()
+
 
 
 def _parse_feature_token(token: str) -> Optional[Tuple[str, float]]:
@@ -113,6 +114,9 @@ def log(msg: str) -> None:
 def sanitize_label(text: str) -> str:
     return text.replace("/", "-").replace(" ", "_")
 
+
+# Construct a dcit of cache file paths for input dataset 
+# Returns paths for the cache directory and the train/valid/test Parquet files.
 
 def cache_paths(dataset_label: str) -> Dict[str, Path]:
     sanitized = sanitize_label(dataset_label)
@@ -141,9 +145,9 @@ class DatasetBundle:
     feature_cols: List[str]
     name: str
 
-
+### function to parse the LETOR datasets into data frame, with columns label, q_id, doc_id, features
 def read_letor_file(path: Path, max_docs: Optional[int] = None) -> Tuple[pd.DataFrame, List[str]]:
-    """Parse a LETOR-style file into a DataFrame with qid/doc_id/label/features."""
+    
     rows: List[Dict[str, float]] = []
     feature_names: set[str] = set()
     per_query_doc_idx: defaultdict[str, int] = defaultdict(int)
@@ -188,7 +192,6 @@ def align_feature_columns(
     frames: Sequence[pd.DataFrame],
     feature_universe: Sequence[str],
 ) -> None:
-    """Ensure each dataframe has the full feature set, filling missing entries with zeros."""
     for frame in frames:
         missing = [feat for feat in feature_universe if feat not in frame.columns]
         for feat in missing:
@@ -263,13 +266,14 @@ def fast_read_libsvm(
     frame.insert(0, "qid", qids.astype(str))
     return frame, feature_cols
 
-
+##### the min max feature normalization function
+##### Scale features into [0, 1] using stats computed on the training split.
 def min_max_normalize(
     train_df: pd.DataFrame,
     feature_cols: Sequence[str],
     eval_dfs: Optional[Sequence[pd.DataFrame]] = None,
 ) -> Dict[str, Tuple[float, float]]:
-    """Scale features into [0, 1] using stats computed on the training split."""
+    
     mins = train_df[feature_cols].min()
     maxs = train_df[feature_cols].max()
     stats: Dict[str, Tuple[float, float]] = {}
@@ -284,13 +288,13 @@ def min_max_normalize(
     return stats
 
 
+##### the data loading and split function, load differernt real dataset
 def load_dataset_splits(
     dataset: str,
     fold: Optional[int] = None,
     use_cache: bool = True,
     max_docs: Optional[int] = None,
 ) -> DatasetBundle:
-    """Load datasets described in the repo (optionally via parquet cache)."""
     dataset_key = dataset.lower()
     dataset_alias: Optional[str] = None
     if dataset_key.startswith("mq2007_fold"):
@@ -408,9 +412,8 @@ def to_matrix(df: pd.DataFrame, feature_cols: Sequence[str]) -> np.ndarray:
     return df[feature_cols].to_numpy(dtype=np.float32)
 
 
+##### linear scorer for pairwise loss 
 class SimpleLambdaRanker:
-    """Pairwise logistic LambdaRank-style model with linear scoring."""
-
     def __init__(
         self,
         feature_cols: Sequence[str],
@@ -482,8 +485,8 @@ class SimpleLambdaRanker:
         return pairs
 
 
+##### linear scorer for pointwise loss 
 class SimpleLinearRegressor:
-    """Naive pointwise linear regressor trained with squared loss."""
 
     def __init__(
         self,
@@ -539,9 +542,8 @@ class SimpleLinearRegressor:
         return features @ self.weights + self.bias
 
 
+##### MLP scorer for pairwise loss 
 class NeuralLambdaRanker:
-    """Two-layer neural LambdaRank trained with pairwise logistic loss."""
-
     def __init__(
         self,
         feature_cols: Sequence[str],
@@ -678,10 +680,8 @@ class NeuralLambdaRanker:
         scores, _ = self._forward(features)
         return scores.ravel()
 
-
+##### linear scorer for pointwise loss 
 class NeuralPointwiseRegressor:
-    """Two-layer neural pointwise regressor using the same architecture."""
-
     def __init__(
         self,
         feature_cols: Sequence[str],
@@ -801,7 +801,7 @@ class NeuralPointwiseRegressor:
         return scores.ravel()
 
 
-
+# performance evaluation metric with NDCG, dcg/ideal dcg 
 def ndcg_at_k(df: pd.DataFrame, k: Optional[int] = 10) -> float:
     scores = []
     for _, group in df.groupby("qid"):
@@ -843,6 +843,7 @@ def should_normalize_features(model_name: str) -> bool:
     return key not in {"pointwise_tree", "lambdarank_tree", "xgboost"}
 
 
+# training function for pointwise loss scorer
 def train_pointwise_regressor(
     train_df: pd.DataFrame,
     valid_df: pd.DataFrame,
@@ -879,6 +880,7 @@ def train_pointwise_regressor(
     return model
 
 
+# training function for pairwise loss scorer models
 def train_lightgbm_ranker(
     train_df: pd.DataFrame,
     valid_df: pd.DataFrame,
@@ -923,7 +925,7 @@ def train_lightgbm_ranker(
     )
     return model
 
-
+# training function for xgboost
 def train_xgboost_ranker(
     train_df: pd.DataFrame,
     valid_df: pd.DataFrame,
