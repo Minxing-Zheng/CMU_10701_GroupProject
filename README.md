@@ -15,6 +15,16 @@ This provides a lightweight end-to-end introduction to the pipeline.
 
 ---
 
+## 📂 Repository Layout (brief)
+
+- `run.py`: entry point to launch experiments over models/datasets.
+- `10701_ConformalPrediction_demo.ipynb`: the Colab-friendly toy example walkthrough.
+- `explorations/`: ad-hoc exploration scripts for different models and datasets.
+- `figure_plot.py`: plotting utilities and figure script.
+- `expected_utility.py`: script for human welfare analysis
+
+---
+
 ### 📘 Usage with Your Own Model or Dataset
 
 To reuse this conformal FDR pipeline with custom data, you only need to provide a `pandas.DataFrame` like the structure of `df_summary` with the following columns:
